@@ -289,6 +289,10 @@ project ('spring-kafka') {
 			exclude group: 'org.jetbrains.kotlin'
 		}
 
+		// https://mvnrepository.com/artifact/io.confluent.parallelconsumer/parallel-consumer-core
+		implementation 'io.confluent.parallelconsumer:parallel-consumer-core:0.5.2.8'
+
+
 		// Spring Data projection message binding support
 		optionalApi ("org.springframework.data:spring-data-commons") {
 			exclude group: 'org.springframework'
