@@ -31,7 +31,7 @@ import io.confluent.parallelconsumer.ParallelStreamProcessor;
 
 public class ParallelConsumerContext<K,V> {
 
-	public static final String BEAN_NAME = "parallelConsumerContext";
+	public static final String DEFAULT_BEAN_NAME = "parallelConsumerContext";
 	private final ParallelConsumerConfig parallelConsumerConfig;
 	private final ParallelConsumerCallback<K,V> parallelConsumerCallback;
 	private ParallelStreamProcessor<K, V> processor;
@@ -41,9 +41,6 @@ public class ParallelConsumerContext<K,V> {
 		this.parallelConsumerCallback = callback;
 	}
 
-	public boolean isEnable() {
-		return this.parallelConsumerConfig.isEnable();
-	}
 
 	public ParallelConsumerCallback<K,V> parallelConsumerCallback() {
 		return this.parallelConsumerCallback;

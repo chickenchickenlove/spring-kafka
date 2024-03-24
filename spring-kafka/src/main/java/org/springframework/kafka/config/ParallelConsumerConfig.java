@@ -16,12 +16,20 @@
 
 package org.springframework.kafka.config;
 
+import java.time.Duration;
+import java.time.temporal.TemporalUnit;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
+import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Tags;
 import org.apache.kafka.clients.consumer.Consumer;
 
 import io.confluent.parallelconsumer.ParallelConsumerOptions;
 import io.confluent.parallelconsumer.ParallelConsumerOptions.ProcessingOrder;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.util.StringUtils;
 
 /**
  * ParallelConsumerConfig is for config of io.confluent.parallelconsumer.
@@ -32,41 +40,73 @@ import io.confluent.parallelconsumer.ParallelConsumerOptions.ProcessingOrder;
 
 public class ParallelConsumerConfig {
 
-	public static final String PARALLEL_CONSUMER_ENABLE = "PARALLEL_CONSUMER_ENABLE";
-	public static final String PARALLEL_CONSUMER_MAX_CONCURRENCY = "PARALLEL_CONSUMER_MAX_CONCURRENCY";
-	public static final String PARALLEL_CONSUMER_ORDERING = "PARALLEL_CONSUMER_ORDERING";
 
-	private final boolean enableParallelConsumer;
-	private final int maxConcurrency;
-	private final ProcessingOrder ordering;
+	private static final String PARALLEL_CONSUMER_MAX_CONCURRENCY = "PARALLEL_CONSUMER_MAX_CONCURRENCY";
+	private static final String PARALLEL_CONSUMER_ORDERING = "PARALLEL_CONSUMER_ORDERING";
+	private static final String ALLOW_EAGER_PROCESSING_DURING_TRANSACTION_COMMIT = "ALLOW_EAGER_PROCESSING_DURING_TRANSACTION_COMMIT";
+	private static final String COMMIT_LOCK_ACQUISITION_TIMEOUT = "COMMIT_LOCK_ACQUISITION_TIMEOUT";
+	private static final String COMMIT_INTERVAL = "COMMIT_INTERVAL";
+	private final Map<String, String> properties = new HashMap<>();
 
 	public ParallelConsumerConfig() {
-		final Boolean enableParallelConsumer = Boolean.valueOf(System.getenv(PARALLEL_CONSUMER_ENABLE));
-		final Integer maxConcurrency = Integer.valueOf(System.getenv(PARALLEL_CONSUMER_MAX_CONCURRENCY));
+
+		final String maxConcurrency = System.getenv(PARALLEL_CONSUMER_MAX_CONCURRENCY);
 		final String ordering = System.getenv(PARALLEL_CONSUMER_ORDERING);
+		final String allowEagerProcessingDuringTransactionCommit = System.getenv(ALLOW_EAGER_PROCESSING_DURING_TRANSACTION_COMMIT);
+		final String commitLockAcquisitionTimeout = System.getenv(COMMIT_LOCK_ACQUISITION_TIMEOUT);
+		final String commitInterval = System.getenv(COMMIT_INTERVAL);
 
-		Objects.requireNonNull(enableParallelConsumer);
-		Objects.requireNonNull(maxConcurrency);
-		Objects.requireNonNull(ordering);
+		this.properties.put(PARALLEL_CONSUMER_MAX_CONCURRENCY, maxConcurrency);
+		this.properties.put(PARALLEL_CONSUMER_ORDERING, ordering);
+		this.properties.put(ALLOW_EAGER_PROCESSING_DURING_TRANSACTION_COMMIT, allowEagerProcessingDuringTransactionCommit);
+		this.properties.put(COMMIT_LOCK_ACQUISITION_TIMEOUT, commitLockAcquisitionTimeout);
+		this.properties.put(COMMIT_INTERVAL, commitInterval);
+	}
 
-		this.enableParallelConsumer = enableParallelConsumer;
-		this.maxConcurrency = maxConcurrency;
-		this.ordering = switch (ordering) {
-			case "key" -> ProcessingOrder.KEY;
+	private ProcessingOrder toOrder(String order) {
+		return switch (order) {
 			case "partition" -> ProcessingOrder.PARTITION;
-			default -> ProcessingOrder.UNORDERED;
+			case "unordered" -> ProcessingOrder.UNORDERED;
+			default -> ProcessingOrder.KEY; // Confluent Consumer Default Policy
 		};
 	}
 
-	public boolean isEnable() {
-		return this.enableParallelConsumer;
-	}
+	public <K,V> ParallelConsumerOptions<K, V> toConsumerOptions(Consumer<K, V> consumer) {
 
-	public <K, V> ParallelConsumerOptions<K, V> toConsumerOptions(Consumer<K, V> consumer) {
-		return ParallelConsumerOptions.<K, V>builder()
-				.ordering(ordering)
-				.maxConcurrency(this.maxConcurrency)
-				.consumer(consumer)
-				.build();
+		ParallelConsumerOptions.ParallelConsumerOptionsBuilder<K, V> builder = ParallelConsumerOptions.builder();
+		builder.consumer(consumer);
+
+		final String maxConcurrencyString = this.properties.get(PARALLEL_CONSUMER_MAX_CONCURRENCY);
+		final String orderingString = this.properties.get(PARALLEL_CONSUMER_ORDERING);
+		final String allowEagerProcessingDuringTransactionCommitString = this.properties.get(ALLOW_EAGER_PROCESSING_DURING_TRANSACTION_COMMIT);
+		final String commitLockAcquisitionTimeoutString = this.properties.get(COMMIT_LOCK_ACQUISITION_TIMEOUT);
+		final String commitIntervalString = this.properties.get(COMMIT_INTERVAL);
+
+		if (StringUtils.hasText(maxConcurrencyString)) {
+			final Integer maxConcurrency = Integer.valueOf(maxConcurrencyString);
+			builder.maxConcurrency(maxConcurrency);
+		}
+
+		if (StringUtils.hasText(orderingString)) {
+			final ProcessingOrder processingOrder = toOrder(orderingString);
+			builder.ordering(processingOrder);
+		}
+
+		if (StringUtils.hasText(allowEagerProcessingDuringTransactionCommitString)) {
+			final Boolean allowEagerProcessingDuringTransactionCommit = Boolean.valueOf(allowEagerProcessingDuringTransactionCommitString);
+			builder.allowEagerProcessingDuringTransactionCommit(allowEagerProcessingDuringTransactionCommit);
+		}
+
+		if (StringUtils.hasText(commitLockAcquisitionTimeoutString)) {
+			final Long commitLockAcquisitionTimeout = Long.valueOf(commitLockAcquisitionTimeoutString);
+			builder.commitLockAcquisitionTimeout(Duration.ofSeconds(commitLockAcquisitionTimeout));
+		}
+
+		if (StringUtils.hasText(commitIntervalString)) {
+			final Long commitInterval = Long.valueOf(commitIntervalString);
+			builder.commitInterval(Duration.ofMillis(commitInterval));
+		}
+
+		return builder.build();
 	}
 }

@@ -30,7 +30,7 @@ import io.confluent.parallelconsumer.ParallelStreamProcessor;
 
 public class ParallelConsumerFactory<K, V> implements SmartLifecycle {
 
-	public static final String BEAN_NAME = "parallelConsumerFactory";
+	public static final String DEFAULT_BEAN_NAME = "parallelConsumerFactory";
 	private final ParallelConsumerContext<K, V> parallelConsumerContext;
 	private final DefaultKafkaConsumerFactory<K, V> defaultKafkaConsumerFactory;
 	private boolean running;

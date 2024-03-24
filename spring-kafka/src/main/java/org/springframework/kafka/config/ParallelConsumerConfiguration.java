@@ -34,28 +34,16 @@ import org.springframework.kafka.core.ParallelConsumerFactory;
  * @since 3.2.0
  */
 
-@Configuration
 public class ParallelConsumerConfiguration<K, V> {
 
-
-	static class EnableParallelConsumerCondition implements Condition {
-		@Override
-		public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
-			return Boolean.valueOf(context.getEnvironment().getProperty(ParallelConsumerConfig.PARALLEL_CONSUMER_ENABLE));
-		}
-	}
-
-	@Bean(name = ParallelConsumerContext.BEAN_NAME)
-	@Conditional(EnableParallelConsumerCondition.class)
+	@Bean(name = ParallelConsumerContext.DEFAULT_BEAN_NAME)
 	public ParallelConsumerContext<K,V> parallelConsumerContext(ParallelConsumerCallback<K, V> parallelConsumerCallback) {
 		return new ParallelConsumerContext(parallelConsumerCallback);
 	}
 
-	@Bean(name = ParallelConsumerFactory.BEAN_NAME)
-	@Conditional(EnableParallelConsumerCondition.class)
-	public ParallelConsumerFactory<K,V> parallelConsumerFactory(DefaultKafkaConsumerFactory consumerFactory,
-																ParallelConsumerCallback<K, V> parallelConsumerCallback) {
-		return new ParallelConsumerFactory(parallelConsumerContext(parallelConsumerCallback),
-				consumerFactory);
+	@Bean(name = ParallelConsumerFactory.DEFAULT_BEAN_NAME)
+	public ParallelConsumerFactory<K,V> parallelConsumerFactory(DefaultKafkaConsumerFactory<K,V> consumerFactory,
+																ParallelConsumerContext<K,V> parallelConsumerContext) {
+		return new ParallelConsumerFactory(parallelConsumerContext, consumerFactory);
 	}
 }
